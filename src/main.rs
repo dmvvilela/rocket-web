@@ -1,8 +1,12 @@
 #![feature(decl_macro)]
+
 #[macro_use] extern crate rocket;
 
-use rocket::response::content::Json;
+use rocket::Request;
 use rocket::request::Form;
+use rocket::response::content::Json;
+use rocket_contrib::templates::Template;
+use serde::Serialize;
 
 #[derive(FromForm, Debug)]
 struct Contact {
@@ -26,6 +30,32 @@ fn hello() -> Json<&'static str> {
     }")
 }
 
+#[get("/")]
+fn index() -> Template {
+    #[derive(Serialize)]
+    struct Context {
+        first_name: String,
+        last_name: String,
+    }
+
+    let context = Context {
+        first_name: String::from("Daniel"),
+        last_name: String::from("Vilela")
+    };
+
+    Template::render("home", context)
+}
+
+#[catch(404)]
+fn not_found(req: &Request) -> String {
+    format!("Oh no! We couldn't find the requested path '{}'", req.uri())
+}
+
 fn main() {
-    rocket::ignite().mount("/api", routes![hello, new_contact]).launch();
+    rocket::ignite()
+        .register(catchers![not_found])
+        .mount("/", routes![index])
+        .mount("/api", routes![hello, new_contact])
+        .attach(Template::fairing())
+        .launch();
 }
